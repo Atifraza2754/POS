@@ -1,7 +1,7 @@
 # 🧾 Laravel POS System
 
 A full-featured **Point of Sale (POS) system** built with **Laravel**, designed to manage sales, purchases, products, customers, and inventory efficiently.  
-This project follows **Laravel best practices**, clean architecture, and is suitable for **learning, portfolio showcase, and small business use**.
+This project follows **Laravel best practices**, clean architecture, and is suitable for small business use .
 
 ---
 
@@ -33,7 +33,5 @@ This project follows **Laravel best practices**, clean architecture, and is suit
 
 - Retail Stores  
 - Small & Medium Businesses  
-- Laravel Learning Project  
-- Portfolio Showcase  
 
 ---
