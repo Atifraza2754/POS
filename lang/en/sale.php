@@ -1,0 +1,76 @@
+<?php
+
+return [
+    'sale'                          => 'Sale',
+    'details'                       => 'Sale Details',
+    'list'                          => 'Sale List',
+    'create'                        => 'Create Sale',
+    'code'                          => 'Sale Code',
+    'number'                        => 'Sale Number',
+    'items'                         => 'Sale Items',
+    'update'                        => 'Update Sale',
+
+    'invoices'                      => 'Invoices',
+    'invoice'                       => 'Invoice',
+    'invoice_no'                    => 'Invoice No.',
+    'print'                         => 'Sale Print',
+    'convert_to_sale'               => 'Convert to Sale',
+    'already_converted'             => 'Sale Order Already Converted to Sale Invoice',
+    'return_to'                     => 'Return To',
+    'sale_invoice_number'           => 'Sale Invoice Number',
+    'debit_note'                    => 'Debit Note',
+    'convert_to_return'             => 'Convert to Return',
+
+    'convert_to_invoice'            => 'Convert to Invoice',
+    'item_sale'                     => 'Item Sale',
+    'sale_report'                   => 'Sale Report',
+    'item_sale_report'              => 'Item Sale Report',
+    'sale_payment_report'           => 'Sale Payment Report',
+    'sale_payment'                  => 'Sale Payment',
+    'pos'                           => 'POS',
+    'pos_print'                     => 'POS Print',
+    'seller'                        => 'Seller',
+    'invoice_value'                 => 'Invoice Value',
+    'sale_without_tax'              => 'Sale Without Tax',
+    'sale_return_without_tax'       => 'Sale Return Without Tax',
+    'recent_invoices'               => 'Recent Invoices',
+    'sale_vs_purchase'              => 'Sale vs. Purchase',
+    'sale_invoices'                 => 'Sale Invoices',
+    'sale_invoice'                  => 'Sale Invoice',
+    'invoice_date'                  => 'Invoice Date',
+
+    'return' => [
+                    'return'        => 'Sale Return/Cr.Note',
+                    'create'        => 'Sale Return Create',
+                    'details'       => 'Sale Return Details',
+                    'code'          => 'Return ID',
+                    'date'          => 'Return Date',
+                    'print'         => 'Sale Return Print',
+                    // 'status'        => 'Sale Order Status',
+                    // 'type'          => 'Sale Order Type',
+                    // 'create'        => 'Create Sale Order',
+                    // 'list'          => 'Sale Order List',
+                    'update'        => 'Update Sale Return',
+                ],
+
+    'order' => [
+                    'order'         => 'Sale Order',
+                    'number'        => 'Order Number',
+                    'code'          => 'Order ID',
+                    'status'        => 'Sale Order Status',
+                    'type'          => 'Sale Order Type',
+                    'details'       => 'Sale Order Details',
+                    'create'        => 'Create Sale Order',
+                    'list'          => 'Sale Order List',
+                    'update'        => 'Update Sale Order',
+                    'print'         => 'Sale Order Print',
+                    'pending'         => 'Pending Sale Orders',
+                    'completed'         => 'Completed Sale Orders',
+                ],
+
+    /*1.3*/
+    'profit'                    => 'Sale Profit',
+    // 1.4
+    'add'                       => 'Add Sale',
+
+];

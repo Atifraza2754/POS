@@ -1,0 +1,95 @@
+.page-wrapper-1 {
+    height: 100%;
+    margin-top: 60px;
+    margin-bottom: 30px;
+    margin-left: 0px;
+}
+.item-card:hover .add-item {
+    display: flex !important;
+}
+.item-image {
+    position: relative;
+}
+.item-quantity {
+    position: absolute;
+    left: 5px;
+    bottom: 5px;
+    background: rgba(0, 4, 1, 0.7);
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: white;
+}
+.item-price {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+#itemsGridContainer {
+    height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.card-img-top {
+    height: 100px;
+    object-fit: cover;
+}
+.mt-5 {
+  margin-top: 5rem !important;
+}
+
+/* Basic table styles (optional) */
+table {
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 5px;
+  border: 1px solid #ddd;
+}
+
+/* Resizable column styles */
+.resizable {
+  position: relative;
+  cursor: col-resize; /* Set cursor to indicate resizing */
+}
+
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 5px; /* Adjust resizer width as needed */
+  height: 100%;
+  background-color: #ddd;
+}
+
+/* Selected column styles (optional) */
+.selected th,
+.selected th .th-inner {
+  background-color: #eee; /* Change background color for selected column */
+}
+
+#invoiceItemsTable thead {
+  position: sticky;
+  top: 0;
+  background-color: #fff; /* Optional: Set background color for better visibility */
+  z-index: 1; /* Optional: Ensure header stays on top when scrolling */
+}
+
+.dark-theme #invoiceItemsTable thead {
+  background-color: #000;
+}
+
+#invoiceItemsTable {
+  overflow-y: auto;
+  
+}
+.table-responsive{
+    overflow-y: auto; 
+    height: 270.533px;
+}
+
+/**
+ *Change Padding of Card Body of the ItemsTable
+ * */
+#invoiceItemsTable .card-body {
+    padding: 2px;
+}
