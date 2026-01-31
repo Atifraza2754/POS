@@ -26,9 +26,14 @@
                                 </div>
                                 <div class="card-body p-4 row g-3">
                                         <div class="col-md-6 mb-3">
+                                            <x-label for="salesman_id" name="{{ __('user.user') }}" />
+                                            <select class="form-select salesman-ajax" data-placeholder="Select User" id="salesman_id" name="salesman_id"></select>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
                                             <x-label for="party_id" name="{{ __('customer.customer') }}" />
                                             <select class="form-select party-ajax" data-party-type='Customer' data-placeholder="Select Customer" id="party_id" name="party_id"></select>
-                                        </div>
+                                        </div> 
                                 </div>
 
                                 <div class="card-body p-4 row g-3">
@@ -69,7 +74,7 @@
                                                         <th>#</th>
                                                         <th>{{ __('customer.customer') }}</th>
                                                         <th>{{ __('payment.due_payment') }}</th>
-                                                        <th>{{ __('payment.status') }}</th>
+                                                        <!-- <th>{{ __('payment.status') }}</th> -->
                                                     </tr>
                                                 </thead>
                                                 <tbody></tbody>
@@ -92,5 +97,6 @@
     @include("plugin.export-table")
     <script src="{{ asset('custom/js/common/common.js') }}"></script>
     <script src="{{ asset('custom/js/reports/party/customer-due-payment.js') }}"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 @endsection

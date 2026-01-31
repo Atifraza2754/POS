@@ -132,6 +132,7 @@ class PurchaseReturnController extends Controller
         //     //Already Converted, Redirect it.
         //     return redirect()->route('purchase.return.details', ['id' => $convertedBill->id]);
         // }
+        
         $return = Purchase::with(['party',
                                         'itemTransaction' => [
                                             'item',
@@ -139,7 +140,6 @@ class PurchaseReturnController extends Controller
                                             'batch.itemBatchMaster',
                                             'itemSerialTransaction.itemSerialMaster'
                                         ]])->findOrFail($id);
-
         //Convert Code adjustment - start
         $return->operation = 'convert';
         $return->formatted_return_date = $this->toSystemDateFormat($return->purchase_date);

@@ -31,6 +31,7 @@ function initSelect2Parties() {
                 var query = {
                     search: params.term,
                     party_type : $(".party-ajax").data('party-type'),
+                    salesman_id: $('#salesman_id') ? $('#salesman_id').val() : '',
                 };
                 return query;
             },
@@ -262,7 +263,51 @@ $(document).ready(function($) {
     //Expnse Item Master
     initSelect2ExpenseItemsList();
 
+    // Salesmen Select2
+    initSelect2Salesmen();
+
 });
+
+function initSelect2Salesmen() {
+    $('.salesman-ajax').select2({
+      theme: 'bootstrap-5',
+      allowClear: true,
+      cache: true,
+      ajax: {
+          url: $('#base_url').val() + '/users/select2/ajax/get-list',
+          dataType: 'json',
+          delay: 250,
+          data: function(params) {
+              var query = { search: params.term };
+              return query;
+          },
+          processResults: function(data) {
+              return {
+                  results: data.results.map(function(item) {
+                      return {
+                          id: item.id,
+                          text: item.text,
+                          mobile: item.mobile
+                      };
+                  })
+              };
+          }
+      },
+      templateResult: function(data) {
+            if (!data.id) {
+                return data.text;
+            }
+            return $(`<div><span class='fs-4'>${data.text}</span><br><small class="text-muted"><i class="bx bx-mobile"></i> ${data.mobile ?? '-'}</small></div>`);
+      },
+      templateSelection: function(data) {
+            if (!data.id) {
+                return data.text;
+            }
+            return $(`<span>${data.text} <small class="text-muted">(${data.mobile ?? '-'})</small></span>`);
+      },
+      escapeMarkup: function(m) { return m; }
+  });
+} 
 
 function getSelectedItemId() {
     if($("#item_id")){

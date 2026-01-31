@@ -85,94 +85,120 @@ class PartyService{
 	/**
 	 * Calculate Balance of the Party
 	 * */
+	// public function getPartyBalance($partyId)
+	// {
+	//     // Retrieve the party
+	//     $party = Party::findOrFail($partyId);
+
+	//     // Retrieve opening balance from PartyTransaction
+	//     $openingBalance = PartyTransaction::where('party_id', $partyId)
+	// 				    ->selectRaw('COALESCE(SUM(to_receive) - SUM(to_pay), 0) as opening_balance')
+	// 				    ->first()
+	// 				    ->opening_balance ?? 0;
+
+	// 	//Get Allocation amount based on PartyPayment
+	// 	/**
+	// 	 * For Customers Sale Adjustments
+	// 	 * */
+	// 	$partyPaymentReceiveSum = PartyPayment::where('party_id', $partyId)->where('payment_direction', 'receive')
+	// 	    ->leftJoin('party_payment_allocations', 'party_payments.id', '=', 'party_payment_allocations.party_payment_id')
+	// 	    ->leftJoin('payment_transactions', 'party_payment_allocations.payment_transaction_id', '=', 'payment_transactions.id')
+	// 	    ->selectRaw('SUM(party_payments.amount) - COALESCE(SUM(payment_transactions.amount), 0) AS total_amount')
+	// 	    ->value('total_amount') ?? 0;
+
+	// 	//Get Allocation amount based on PartyPayment
+	//     /**
+	//      * For suppliers, Purchase adjustments
+	//      * */
+	// 	$partyPaymentPaySum = PartyPayment::where('party_id', $partyId)->where('payment_direction', 'pay')
+	// 	    ->leftJoin('party_payment_allocations', 'party_payments.id', '=', 'party_payment_allocations.party_payment_id')
+	// 	    ->leftJoin('payment_transactions', 'party_payment_allocations.payment_transaction_id', '=', 'payment_transactions.id')
+	// 	    ->selectRaw('SUM(party_payments.amount) - COALESCE(SUM(payment_transactions.amount), 0) AS total_amount')
+	// 	    ->value('total_amount') ?? 0;
+
+	//     // Sale & Sale Payments
+	// 	$saleBalance = Sale::where('party_id', $partyId)
+	// 			    ->selectRaw('coalesce(sum(grand_total - paid_amount), 0) as total')
+	// 			    ->value('total');
+
+	// 	// Sale Return & its Payments
+	// 	$saleReturnBalance = SaleReturn::where('party_id', $partyId)
+	// 	    		->selectRaw('coalesce(sum(grand_total - paid_amount), 0) as total')
+	// 			    ->value('total');
+
+	// 	// Purchase & its Payments
+	// 	$purchaseBalance = Purchase::where('party_id', $partyId)
+	// 				->selectRaw('coalesce(sum(grand_total - paid_amount), 0) as total')
+	// 			    ->value('total');
+
+	// 	// Purchase Return & its Payments
+	// 	$purchaseReturnBalance = PurchaseReturn::where('party_id', $partyId)
+	// 				->selectRaw('coalesce(sum(grand_total - paid_amount), 0) as total')
+	// 			    ->value('total');
+
+
+	// 	 //Calculate as per party
+	//     	$balance = $openingBalance - ($partyPaymentReceiveSum - $partyPaymentPaySum);
+	//      if($party->party_type == 'customer'){
+	//      }else{
+	//      	//supplier
+	//      	//$balance = $openingBalance + ($partyPaymentReceiveSum + $partyPaymentPaySum);
+	//      }
+
+	//     // Calculate balance for customers (amount to receive)
+
+	//     $balance += ($saleBalance) - ($saleReturnBalance);
+
+	//     // Calculate balance for suppliers (amount to pay)
+	//     $balance -= ($purchaseBalance) - ($purchaseReturnBalance);
+
+	//     // Determine if the final balance indicates an amount owed or a receivable
+	//     if ($balance > 0) {
+	//         // The company should collect this amount from the party
+	//         return [
+	//             'balance' => $balance,
+	//             'status' => 'you_collect',
+	//         ];
+	//     } elseif ($balance < 0) {
+	//         // The company owes this amount to the party
+	//         return [
+	//             'balance' => abs($balance), // Return positive amount
+	//             'status' => 'you_pay',
+	//         ];
+	//     } else {
+	//         // The balances are equal
+	//         return [
+	//             'balance' => 0,
+	//             'status' => 'no_balance',
+	//         ];
+	//     }
+	// }
+
+
 	public function getPartyBalance($partyId)
 	{
-	    // Retrieve the party
-	    $party = Party::findOrFail($partyId);
+		$party = Party::findOrFail($partyId);
 
-	    // Retrieve opening balance from PartyTransaction
-	    $openingBalance = PartyTransaction::where('party_id', $partyId)
-					    ->selectRaw('COALESCE(SUM(to_receive) - SUM(to_pay), 0) as opening_balance')
-					    ->first()
-					    ->opening_balance ?? 0;
+		// Total due from Purchase table only
+		$balance = Purchase::where('party_id', $partyId)
+			->selectRaw('COALESCE(SUM(grand_total - paid_amount), 0) as due')
+			->value('due');
 
-		//Get Allocation amount based on PartyPayment
-		/**
-		 * For Customers Sale Adjustments
-		 * */
-		$partyPaymentReceiveSum = PartyPayment::where('party_id', $partyId)->where('payment_direction', 'receive')
-		    ->leftJoin('party_payment_allocations', 'party_payments.id', '=', 'party_payment_allocations.party_payment_id')
-		    ->leftJoin('payment_transactions', 'party_payment_allocations.payment_transaction_id', '=', 'payment_transactions.id')
-		    ->selectRaw('SUM(party_payments.amount) - COALESCE(SUM(payment_transactions.amount), 0) AS total_amount')
-		    ->value('total_amount') ?? 0;
+		if ($balance > 0) {
+			// Supplier → you need to pay
+			return [
+				'balance' => $balance,
+				'status'  => 'you_pay',
+			];
+		}
 
-		//Get Allocation amount based on PartyPayment
-	    /**
-	     * For suppliers, Purchase adjustments
-	     * */
-		$partyPaymentPaySum = PartyPayment::where('party_id', $partyId)->where('payment_direction', 'pay')
-		    ->leftJoin('party_payment_allocations', 'party_payments.id', '=', 'party_payment_allocations.party_payment_id')
-		    ->leftJoin('payment_transactions', 'party_payment_allocations.payment_transaction_id', '=', 'payment_transactions.id')
-		    ->selectRaw('SUM(party_payments.amount) - COALESCE(SUM(payment_transactions.amount), 0) AS total_amount')
-		    ->value('total_amount') ?? 0;
-
-	    // Sale & Sale Payments
-		$saleBalance = Sale::where('party_id', $partyId)
-				    ->selectRaw('coalesce(sum(grand_total - paid_amount), 0) as total')
-				    ->value('total');
-
-		// Sale Return & its Payments
-		$saleReturnBalance = SaleReturn::where('party_id', $partyId)
-		    		->selectRaw('coalesce(sum(grand_total - paid_amount), 0) as total')
-				    ->value('total');
-
-		// Purchase & its Payments
-		$purchaseBalance = Purchase::where('party_id', $partyId)
-					->selectRaw('coalesce(sum(grand_total - paid_amount), 0) as total')
-				    ->value('total');
-
-		// Purchase Return & its Payments
-		$purchaseReturnBalance = PurchaseReturn::where('party_id', $partyId)
-					->selectRaw('coalesce(sum(grand_total - paid_amount), 0) as total')
-				    ->value('total');
-
-
-		 //Calculate as per party
-	    	$balance = $openingBalance - ($partyPaymentReceiveSum - $partyPaymentPaySum);
-	     if($party->party_type == 'customer'){
-	     }else{
-	     	//supplier
-	     	//$balance = $openingBalance + ($partyPaymentReceiveSum + $partyPaymentPaySum);
-	     }
-
-	    // Calculate balance for customers (amount to receive)
-
-	    $balance += ($saleBalance) - ($saleReturnBalance);
-
-	    // Calculate balance for suppliers (amount to pay)
-	    $balance -= ($purchaseBalance) - ($purchaseReturnBalance);
-
-	    // Determine if the final balance indicates an amount owed or a receivable
-	    if ($balance > 0) {
-	        // The company should collect this amount from the party
-	        return [
-	            'balance' => $balance,
-	            'status' => 'you_collect',
-	        ];
-	    } elseif ($balance < 0) {
-	        // The company owes this amount to the party
-	        return [
-	            'balance' => abs($balance), // Return positive amount
-	            'status' => 'you_pay',
-	        ];
-	    } else {
-	        // The balances are equal
-	        return [
-	            'balance' => 0,
-	            'status' => 'no_balance',
-	        ];
-	    }
+		return [
+			'balance' => 0,
+			'status'  => 'no_balance',
+		];
 	}
+
+
 
 
 

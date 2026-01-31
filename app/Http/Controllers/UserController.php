@@ -167,7 +167,6 @@ class UserController extends Controller
                     ->leftJoin('roles', 'users.role_id', '=', 'roles.id')
                     ->where('users.id', '!=', auth()->id());
 
-
         return DataTables::of($data)
                     ->addIndexColumn()
                     ->addColumn('created_at', function ($row) {
@@ -199,6 +198,37 @@ class UserController extends Controller
                     })
                     ->rawColumns(['action'])
                     ->make(true);
+    }
+
+    /**
+     * Select2 -> Salesmen
+     */
+    public function getAjaxSearchBarList(Request $request)
+    {
+        $search = $request->input('search');
+
+        $users = User::where(function($q) use ($search) {
+                        $q->where('first_name', 'LIKE', "%{$search}%")
+                          ->orWhere('last_name', 'LIKE', "%{$search}%")
+                          ->orWhere('mobile', 'LIKE', "%{$search}%")
+                          ->orWhere('email', 'LIKE', "%{$search}%");
+                    })
+                    ->where('role_id', 2) // salesmen
+                    ->select('id','first_name','last_name','mobile')
+                    ->limit(8)
+                    ->get();
+
+        $response = [
+            'results' => $users->map(function($u){
+                return [
+                    'id' => $u->id,
+                    'text' => trim($u->first_name . ' ' . $u->last_name),
+                    'mobile' => $u->mobile,
+                ];
+            })->toArray(),
+        ];
+
+        return response()->json($response);
     }
 
     public function delete(Request $request) : JsonResponse{

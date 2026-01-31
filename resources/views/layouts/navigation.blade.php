@@ -564,11 +564,11 @@
 												<a href="{{ route('report.customer.due.payment') }}"><i class='bx bx-radio-circle'></i>{{ __('customer.customer') }}</a>
 											</li>
 											@endcan
-											{{-- @can('report.supplier.due.payment')
+											@can('report.supplier.due.payment')
 											<li class="{{ request()->is('report/supplier/due') ? 'mm-active' : '' }}">
 												<a href="{{ route('report.supplier.due.payment') }}"><i class='bx bx-radio-circle'></i>{{ __('supplier.supplier') }}</a>
 											</li>
-											@endcan --}}
+											@endcan
 										</ul>
 							</li>
 						@endcanany

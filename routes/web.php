@@ -625,6 +625,9 @@ Route::middleware('auth')->group(function () {
             return response()->file($imagePath);
         });
 
+        // Select2 -> Salesmen
+        Route::get('/select2/ajax/get-list', [UserController::class, 'getAjaxSearchBarList']);
+
 
     });
 

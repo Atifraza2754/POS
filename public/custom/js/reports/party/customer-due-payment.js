@@ -2,6 +2,7 @@ $(function() {
     "use strict";
 
     let originalButtonText;
+    let dueResponse = null;
 
     const tableId = $('#duePaymentReport');
 
@@ -48,6 +49,7 @@ $(function() {
     }
     function afterSeccessOfAjaxRequest(formObject, response){
         formAdjustIfSaveOperation(response);
+        dueResponse = response; // store for PDF export
     }
     function afterFailOfAjaxRequest(formObject){
         showNoRecordsMessageOnTableBody();
@@ -109,7 +111,6 @@ $(function() {
                     <td>${id++}</td>
                     <td>${party.party_name}</td>
                     <td class='text-end ${party.className}' data-tableexport-celltype="number" >${_formatNumber(party.due_amount)}</td>
-                    <td class='${party.className}'>${party.status }</td>
                 </tr>
             `;
         });
@@ -118,9 +119,13 @@ $(function() {
             <tr class='fw-bold'>
                 <td colspan='0' class='text-end tfoot-first-td'>${_lang.total}</td>
                 <td class='text-end' data-tableexport-celltype="number">${_formatNumber(totalAmount)}</td>
-                <td></td>
             </tr>
         `;
+
+        // When salesman changes, reset customer select if not matched
+    $(document).on('change', '#salesman_id', function() {
+        $('#party_id').val(null).trigger('change');
+    });
 
         // Clear existing rows:
         tableBody.empty();
@@ -157,7 +162,98 @@ $(function() {
      * PDF, SpreadSheet
      * */
     $(document).on("click", '#generate_pdf', function() {
-        tableId.tableExport({type:'pdf',escape:'false'});
+        if (!dueResponse || !dueResponse.data.length) {
+            alert("No data to export");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        let startY = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // COMPANY NAME
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Shahid Traders", pageWidth / 2, startY, { align: "center" });
+
+        startY += 8;
+
+        // REPORT TITLE
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text("Customer Due Payment Report", pageWidth / 2, startY, { align: "center" });
+
+        startY += 10;
+
+        // SALESMAN / CUSTOMER INFO
+        const selectedSalesman = $('#salesman_id').select2 ? ($('#salesman_id').select2('data')[0] ? $('#salesman_id').select2('data')[0].text : '') : $('#salesman_id option:selected').text();
+        // const selectedCustomer = $('#party_id').select2 ? ($('#party_id').select2('data')[0] ? $('#party_id').select2('data')[0].text : '') : $('#party_id option:selected').text();
+
+        doc.setFontSize(10);
+
+        if (selectedSalesman) {
+            doc.text(`Salesman: ${selectedSalesman}`, 14, startY);
+            startY += 6;
+        }
+
+        // Only show customer when a specific customer is selected
+        // if ($('#party_id').val()) {
+        //     if (selectedCustomer) {
+        //         doc.text(`Customer: ${selectedCustomer}`, 14, startY);
+        //         startY += 6;
+        //     }
+        // }
+
+        startY += 8;
+
+        // TABLE DATA
+        const tableBody = [];
+        let totalAmount = 0;
+
+        // Always show per-customer rows (matches filtered table)
+        let counter = 1;
+        dueResponse.data.forEach(function(item) {
+            tableBody.push([
+                counter++,
+                item.party_name,
+                parseFloat(item.due_amount).toFixed(2)
+            ]);
+            totalAmount += parseFloat(item.due_amount);
+        });
+
+        // Totals row
+        tableBody.push([
+            '',
+            'TOTAL',
+            totalAmount.toFixed(2)
+        ]);
+
+        doc.autoTable({
+            startY: startY,
+            head: [[
+                '#',
+                'Customer',
+                'Due Payment'
+            ]],
+            body: tableBody,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 3
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: 'bold'
+            },
+            columnStyles: {
+                2: { halign: 'right' }
+            }
+        });
+
+        doc.save("customer_due_payment_report.pdf");
     });
 
     $(document).on("click", '#generate_excel', function() {

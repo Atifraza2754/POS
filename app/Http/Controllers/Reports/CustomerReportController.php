@@ -141,6 +141,16 @@ class CustomerReportController extends Controller
     {
         try {
             $partyId = $request->input('party_id');
+            $salesmanId = $request->input('salesman_id');
+
+            // If salesman selected, fetch party ids created by that salesman
+            $partyIds = null;
+            if (!empty($salesmanId)) {
+                $partyIds = Party::where('created_by', $salesmanId)->pluck('id');
+                if ($partyIds->isEmpty()) {
+                    throw new \Exception('No Records Found!!');
+                }
+            }
 
             /**
              * 1️⃣ Get total sales per customer from sale_orders
@@ -152,6 +162,8 @@ class CustomerReportController extends Controller
 
             if (!empty($partyId)) {
                 $salesQuery->where('party_id', $partyId);
+            } elseif (!empty($partyIds)) {
+                $salesQuery->whereIn('party_id', $partyIds);
             }
 
             $salesData = $salesQuery->pluck('total_sales', 'party_id');
@@ -166,6 +178,8 @@ class CustomerReportController extends Controller
 
             if (!empty($partyId)) {
                 $paymentsQuery->where('party_id', $partyId);
+            } elseif (!empty($partyIds)) {
+                $paymentsQuery->whereIn('party_id', $partyIds);
             }
 
             $paymentsData = $paymentsQuery->pluck('total_paid', 'party_id');
@@ -175,23 +189,34 @@ class CustomerReportController extends Controller
              */
             $allPartyIds = $salesData->keys()->merge($paymentsData->keys())->unique();
 
-            if ($allPartyIds->isEmpty()) {
+            // Determine which party IDs should be used for the final output
+            if (!empty($partyId)) {
+                $selectedPartyIds = collect([$partyId]);
+            } elseif (!empty($salesmanId)) {
+                // Fall back to all customers created by the salesman (even if they have zero sales/payments)
+                $selectedPartyIds = Party::where('created_by', $salesmanId)->pluck('id');
+            } else {
+                $selectedPartyIds = $allPartyIds;
+            }
+
+            // If still empty, no records
+            if ($selectedPartyIds->isEmpty()) {
                 throw new \Exception('No Records Found!!');
             }
 
             $recordsArray = [];
 
-            foreach ($allPartyIds as $id) {
+            foreach ($selectedPartyIds as $id) {
                 $totalSales = (float) ($salesData[$id] ?? 0);
                 $totalPaid  = (float) ($paymentsData[$id] ?? 0);
                 $dueAmount  = $totalSales - $totalPaid;
 
-                // Skip customers who have no sales or zero balance
+                // Optionally skip customers who have neither sales nor due
                 if ($totalSales == 0 && $dueAmount == 0) {
                     continue;
                 }
 
-                $party = Party::find($id); // adjust this if you have a different relationship
+                $party = Party::find($id);
 
                 $recordsArray[] = [
                     'party_id'     => $id,

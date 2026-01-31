@@ -553,6 +553,7 @@ class PartyController extends Controller
     {
         $search = request('search');
         $partyType = request('party_type');
+        $salesmanId = request('salesman_id');
 
         $user = Auth::user();
 
@@ -564,6 +565,9 @@ class PartyController extends Controller
                                 ->orWhere('email', 'LIKE', "%{$search}%");
                         })
                         ->where('party_type', $partyType)
+                        ->when($salesmanId, function($q) use ($salesmanId){
+                            $q->where('created_by', $salesmanId);
+                        })
                         ->when($user->role_id == 2, function ($query) use ($user) {
                             $query->where('created_by', $user->id);
                         })
