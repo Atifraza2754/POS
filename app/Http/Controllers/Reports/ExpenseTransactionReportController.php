@@ -39,7 +39,8 @@ class ExpenseTransactionReportController extends Controller
             $toDate             = $this->toSystemDateFormat($toDate);
             $expenseCategoryId  = $request->input('expense_category_id');
             
-            $preparedData = Expense::when($expenseCategoryId, function ($query) use ($expenseCategoryId) {
+            $preparedData = Expense::with('category', 'paymentTransaction.paymentType', 'user')
+                                    ->when($expenseCategoryId, function ($query) use ($expenseCategoryId) {
                                         return $query->where('expense_category_id', $expenseCategoryId);
                                     })
                                     ->whereBetween('expense_date', [$fromDate, $toDate])
@@ -53,13 +54,19 @@ class ExpenseTransactionReportController extends Controller
             $recordsArray = [];
 
             foreach ($preparedData as $data) {
+                // collect unique payment type names (if any)
+                $paymentTypeNames = $data->paymentTransaction->map(function($pt){
+                    return optional($pt->paymentType)->name;
+                })->filter()->unique()->values()->toArray();
+                $paymentTypes = count($paymentTypeNames) ? implode(', ', $paymentTypeNames) : '';
+
                 $recordsArray[] = [  
                                     'expense_date'         => $this->toUserDateFormat($data->expense_date),
-                                    'expense_code'          => $data->expense_code,
-                                    'category_name'         => $data->category->name,
-                                    'grand_total'           => $this->formatWithPrecision($data->grand_total, comma:false),
-                                    'paid_amount'           => $this->formatWithPrecision($data->paid_amount, comma:false),
-                                    'balance'               => $this->formatWithPrecision($data->grand_total - $data->paid_amount , comma:false),
+                                    'expense_code'         => $data->expense_code,
+                                    'category_name'        => optional($data->category)->name ?? '',
+                                    'payment_type'         => $paymentTypes,
+                                    'amount'               => $this->formatWithPrecision($data->grand_total, comma:false),
+                                    'user'                 => optional($data->user)->username ?? '',
                                 ];
             }
             

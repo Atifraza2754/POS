@@ -7,6 +7,7 @@ use App\Models\Items\ItemTransaction;
 use App\Models\PaymentTransaction;
 use App\Models\Sale\SaleOrder;
 use App\Models\User;
+use App\Models\Party\Party;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -441,10 +442,25 @@ class ReportsController extends Controller
             // Re-index array
             $output = array_values($output);
 
+            // Fetch customer info if a single customer was selected
+            $customer = null;
+            if ($partyId) {
+                $c = Party::select('id', 'first_name', 'last_name')->find($partyId);
+                $customer = $c ? [
+                    'id' => $c->id,
+                    'first_name' => $c->first_name,
+                    'last_name' => $c->last_name,
+                    'full_name' => trim($c->first_name . ' ' . $c->last_name),
+                ] : null;
+            }
+
             return response()->json([
                 'status'  => true,
                 'message' => "Records fetched successfully!",
-                'data'    => $output
+                'data'    => $output,
+                'customer' => $customer,
+                'from_date' => $request->from_date,
+                'to_date' => $request->to_date,
             ]);
 
         } catch (\Exception $e) {

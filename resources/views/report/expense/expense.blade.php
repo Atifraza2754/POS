@@ -83,11 +83,11 @@
                                                     <tr class="text-uppercase">
                                                         <th>#</th>
                                                         <th>{{ __('app.date') }}</th>
-                                                        <th>{{ __('app.reference_no') }}</th>
                                                         <th>{{ __('expense.category.category') }}</th>
-                                                        <th>{{ __('app.grand_total') }}</th>
-                                                        <th>{{ __('app.paid_amount') }}</th>
-                                                        <th>{{ __('app.balance') }}</th>
+                                                        <th>{{ __('Expense No') }}</th>
+                                                        <th>{{ __('Payment Type') }}</th>
+                                                        <th>{{ __('app.amount') }}</th>
+                                                        <th>{{ __('user.user') }}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody></tbody>
@@ -109,6 +109,8 @@
 @section('js')
     @include("plugin.export-table")
     <script src="{{ asset('custom/js/common/common.js') }}"></script>
-    <script src="{{ asset('custom/js/reports/expense/expense.js') }}"></script>
+    <script src="{{ asset('custom/js/reports/expense/expense-v2.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     
 @endsection

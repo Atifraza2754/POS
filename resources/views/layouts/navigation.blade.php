@@ -572,7 +572,13 @@
 										</ul>
 							</li>
 						@endcanany
-						@can('report.sale.payment')
+					@can('report.expense')
+					<li class="{{ request()->is('report/expense') ? 'mm-active' : '' }}">
+						<a href="{{ route('report.expense') }}"><i class='bx bx-radio-circle'></i>{{ __('expense.report') }}</a>
+					</li>
+					@endcan
+
+					@can('report.sale.payment')
 						<li class="{{ request()->is('report/stock/page') ? 'mm-active' : '' }}">
 							<a href="{{ route('report.stock.page') }}"><i class='bx bx-radio-circle'></i>{{ __('Stock Report') }}</a>
 						</li>

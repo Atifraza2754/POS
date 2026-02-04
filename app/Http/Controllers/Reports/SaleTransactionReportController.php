@@ -732,6 +732,9 @@ class SaleTransactionReportController extends Controller
                 'status'  => true,
                 'message' => "Records Retrieved Successfully!",
                 'data'    => $groupedResults,
+                'user'    => ['username' => $userName],
+                'from_date' => $request->from_date,
+                'to_date'   => $request->to_date,
             ]);
 
         } catch (\Exception $e) {
@@ -969,6 +972,10 @@ class SaleTransactionReportController extends Controller
                 'message'      => "Total Sales Report Retrieved Successfully!",
                 'data'         => $recordsArray,
                 'grand_total'  => $this->formatWithPrecision($grandTotal, comma: false),
+                // Include user and period info so frontend can render header exactly like ledger
+                'user'         => [ 'username' => $userName ],
+                'from_date'    => $request->input('from_date'),
+                'to_date'      => $request->input('to_date'),
             ]);
 
         } catch (\Exception $e) {
