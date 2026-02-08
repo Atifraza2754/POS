@@ -2,6 +2,7 @@ $(function() {
     "use strict";
 
     let originalButtonText;
+    let itemSaleResponse = null;
 
     const tableId = $('#itemSaleReport');
 
@@ -48,6 +49,8 @@ $(function() {
     }
     function afterSeccessOfAjaxRequest(formObject, response){
         formAdjustIfSaveOperation(response);
+        // Keep last response for PDF export
+        itemSaleResponse = response;
     }
     function afterFailOfAjaxRequest(formObject){
         showNoRecordsMessageOnTableBody();
@@ -323,7 +326,78 @@ function formAdjustIfSaveOperation(response){
      * PDF, SpreadSheet
      * */
     $(document).on("click", '#generate_pdf', function() {
-        tableId.tableExport({type:'pdf',escape:'false'});
+        if (!itemSaleResponse || !itemSaleResponse.data) {
+            alert('No data to export');
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        let startY = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // Company name (centered)
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Shahid Traders", pageWidth / 2, startY, { align: "center" });
+
+        startY += 8;
+
+        // Report title
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text("Item Sale Report", pageWidth / 2, startY, { align: "center" });
+
+        startY += 10;
+
+        // User & Period
+        const userName = (itemSaleResponse.user && itemSaleResponse.user.username) ? itemSaleResponse.user.username : 'N/A';
+        const fromDate = itemSaleResponse.from_date || ($('#reportForm').find('input[name="from_date"]').val() || '-');
+        const toDate = itemSaleResponse.to_date || ($('#reportForm').find('input[name="to_date"]').val() || '-');
+
+        doc.setFontSize(10);
+        doc.text(`User: ${userName}`, 14, startY);
+        startY += 6;
+        doc.text(`Period: ${fromDate} - ${toDate}`, 14, startY);
+
+        startY += 10;
+
+        // Build table body from grouped data (date -> items)
+        const tableBody = [];
+        let totalQty = 0;
+        let totalProfit = 0;
+
+        $.each(itemSaleResponse.data, function(date, items) {
+            $.each(items, function(itemId, row) {
+                tableBody.push([
+                    date,
+                    row.user_name || 'N/A',
+                    row.category_name || 'N/A',
+                    row.item_name || 'N/A',
+                    (row.qty || 0).toFixed(2),
+                    (row.profit || 0).toFixed(2),
+                ]);
+
+                totalQty += parseFloat(row.qty || 0);
+                totalProfit += parseFloat(row.profit || 0);
+            });
+        });
+
+        // Totals row
+        tableBody.push(['', '', '', 'TOTAL', totalQty.toFixed(2), totalProfit.toFixed(2)]);
+
+        doc.autoTable({
+            startY: startY,
+            head: [[ 'Date', 'User', 'Category', 'Item', 'Quantity', 'Profit' ]],
+            body: tableBody,
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+            columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' } }
+        });
+
+        doc.save("item_sale_report.pdf");
     });
 
     $(document).on("click", '#generate_excel', function() {

@@ -2,9 +2,9 @@ $(function() {
     "use strict";
 
     let originalButtonText;
-    let saleResponse = null;
+    let expenseResponse = null;
 
-    const tableId = $('#saleReport');
+    const tableId = $('#expenseReport');
 
     /**
      * Language
@@ -49,8 +49,7 @@ $(function() {
     }
     function afterSeccessOfAjaxRequest(formObject, response){
         formAdjustIfSaveOperation(response);
-        // Keep a reference to the last successful response for PDF export
-        saleResponse = response;
+        expenseResponse = response; // store for PDF export
     }
     function afterFailOfAjaxRequest(formObject){
         showNoRecordsMessageOnTableBody();
@@ -96,43 +95,46 @@ $(function() {
         });
     }
 
-    function formAdjustIfSaveOperation(response) {
-    var tableBody = tableId.find('tbody');
+    function formAdjustIfSaveOperation(response){
+        var tableBody = tableId.find('tbody');
 
-    var id = 1;
-    var tr = "";
+        var id = 1;
+        var tr = "";
+        
+        var totalAmount = parseFloat(0);
+        
+        $.each(response.data, function(index, item) {
+            totalAmount += parseFloat(item.amount);
 
-    var totalAmount = parseFloat(0);
+            tr  +=`
+                <tr>
+                    <td>${id++}</td>
+                    <td>${item.expense_date}</td>
+                    <td>${item.category_name}</td>
+                    <td>${item.expense_code}</td>
+                    <td>${item.payment_type}</td>
+                    <td class='text-end' data-tableexport-celltype="number" >${_formatNumber(item.amount)}</td>
+                    <td>${item.user}</td>
+                </tr>
+            `;
+        });
 
-    $.each(response.data, function(index, item) {
-        totalAmount += parseFloat(item.total_sales);
-
-        tr += `
-            <tr>
-                <td>${id++}</td>
-                <td>${item.order_date}</td>
-                 <td>${item.user_name}</td>
-                <td data-tableexport-celltype="number">${_formatNumber(item.total_sales)}</td>
+        tr  +=`
+            <tr class='fw-bold'>
+                <td colspan='0' class='text-end tfoot-first-td'>${_lang.total}</td>
+                <td class='text-end' data-tableexport-celltype="number">${_formatNumber(totalAmount)}</td>
             </tr>
         `;
-    });
 
-    // Add the grand total row
-    tr += `
-        <tr class='fw-bold'>
-            <td colspan='2' class='text-end tfoot-first-td'>${_lang.total}</td>
-            <td class='text-end' data-tableexport-celltype="number">${_formatNumber(response.grand_total)}</td>
-        </tr>
-    `;
+        // Clear existing rows:
+        tableBody.empty();
+        tableBody.append(tr);
 
-    // Clear existing rows and append new ones
-    tableBody.empty();
-    tableBody.append(tr);
-
-    // Adjust colspan for the footer cell
-    $('.tfoot-first-td').attr('colspan', columnCountWithoutDNoneClass(1));
-}
-
+        /**
+         * Set colspan of the table bottom
+         * */
+        $('.tfoot-first-td').attr('colspan', columnCountWithoutDNoneClass(1)-1);
+    }
 
     function showNoRecordsMessageOnTableBody() {
         var tableBody = tableId.find('tbody');
@@ -159,7 +161,7 @@ $(function() {
      * PDF, SpreadSheet
      * */
     $(document).on("click", '#generate_pdf', function() {
-        if (!saleResponse || !saleResponse.data || !saleResponse.data.length) {
+        if (!expenseResponse || !expenseResponse.data.length) {
             alert("No data to export");
             return;
         }
@@ -170,56 +172,70 @@ $(function() {
         let startY = 15;
         const pageWidth = doc.internal.pageSize.getWidth();
 
-        // Company name (centered)
+        // COMPANY NAME
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text("Shahid Traders", pageWidth / 2, startY, { align: "center" });
 
         startY += 8;
 
-        // Report title
+        // REPORT TITLE
         doc.setFontSize(12);
         doc.setFont("helvetica", "normal");
-        doc.text("Total Sales Report", pageWidth / 2, startY, { align: "center" });
+        doc.text("Expense Report", pageWidth / 2, startY, { align: "center" });
 
         startY += 10;
 
-        // Get period and user info (prefer server response for exact ledger parity)
-        const fromDate = (saleResponse && saleResponse.from_date) ? saleResponse.from_date : ($('#reportForm').find('input[name="from_date"]').val() || "-");
-        const toDate   = (saleResponse && saleResponse.to_date)   ? saleResponse.to_date   : ($('#reportForm').find('input[name="to_date"]').val() || "-");
-        const userName = (saleResponse && saleResponse.user && saleResponse.user.username) ? saleResponse.user.username : ($('#reportForm').find('#all').is(':checked') ? 'All Users' : ($('#reportForm').find('#user_id option:selected').text() || '—'));
-
+        // CATEGORY INFO
+        const selectedCategory = $('#expense_category_id').select2 ? ($('#expense_category_id').select2('data')[0] ? $('#expense_category_id').select2('data')[0].text : '') : $('#expense_category_id option:selected').text();
         doc.setFontSize(10);
-        doc.text(`User: ${userName}`, 14, startY);
-        startY += 6;
-        doc.text(`Period: ${fromDate} - ${toDate}`, 14, startY);
 
-        startY += 10;
+        if (selectedCategory) {
+            doc.text(`Category: ${selectedCategory}`, 14, startY);
+            startY += 6;
+        }
 
-        // Prepare table body
+        startY += 8;
+
+        // TABLE DATA
         const tableBody = [];
-        saleResponse.data.forEach(row => {
+        let totalAmount = 0;
+        // Always show per-expense rows (matches filtered table)
+        let counter = 1;
+        expenseResponse.data.forEach(function(item) {
             tableBody.push([
-                row.order_date,
-                row.user_name,
-                row.total_sales
+                counter++,
+                item.expense_date,
+                item.category_name,
+                item.expense_code,
+                item.payment_type,
+                parseFloat(item.amount).toFixed(2),
+                item.user
             ]);
+            totalAmount += parseFloat(item.amount);
         });
 
         // Totals row
         tableBody.push([
             '',
+            '',
             'TOTAL',
-            saleResponse.grand_total
+            '',
+            '',
+            totalAmount.toFixed(2),
+            ''
         ]);
 
-        // AutoTable
         doc.autoTable({
             startY: startY,
             head: [[
+                '#',
                 'Date',
-                'User',
-                'Total Sales'
+                'Category',
+                'Expense No.',
+                'Payment Type',
+                'Amount',
+                'User'
             ]],
             body: tableBody,
             theme: 'grid',
@@ -233,11 +249,11 @@ $(function() {
                 fontStyle: 'bold'
             },
             columnStyles: {
-                2: { halign: 'right' }
+                5: { halign: 'right' }
             }
         });
 
-        doc.save("total_sales_report.pdf");
+        doc.save("expense_report.pdf");
     });
 
     $(document).on("click", '#generate_excel', function() {

@@ -46,8 +46,11 @@ $(function() {
         enableSubmitButton(formObject);
         hideSpinner();
     }
+    let dueResponse = null;
+
     function afterSeccessOfAjaxRequest(formObject, response){
         formAdjustIfSaveOperation(response);
+        dueResponse = response; // store for PDF export
     }
     function afterFailOfAjaxRequest(formObject){
         showNoRecordsMessageOnTableBody();
@@ -156,7 +159,88 @@ $(function() {
      * PDF, SpreadSheet
      * */
     $(document).on("click", '#generate_pdf', function() {
-        tableId.tableExport({type:'pdf',escape:'false'});
+        if (!dueResponse || !dueResponse.data.length) {
+            alert("No data to export");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        let startY = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // COMPANY NAME
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Shahid Traders", pageWidth / 2, startY, { align: "center" });
+
+        startY += 8;
+
+        // REPORT TITLE
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text("Supplier Due Payment Report", pageWidth / 2, startY, { align: "center" });
+
+        startY += 10;
+
+        // SUPPLIER INFO
+        const selectedSupplier = $('#party_id').select2 ? ($('#party_id').select2('data')[0] ? $('#party_id').select2('data')[0].text : '') : $('#party_id option:selected').text();
+
+        doc.setFontSize(10);
+
+        if ($('#party_id').val() && selectedSupplier) {
+            doc.text(`Supplier: ${selectedSupplier}`, 14, startY);
+            startY += 6;
+        }
+
+        startY += 8;
+
+        // TABLE DATA (always print per-supplier rows to match filtered table)
+        const tableBody = [];
+        let totalAmount = 0;
+
+        let counter = 1;
+        dueResponse.data.forEach(function(item) {
+            tableBody.push([
+                counter++,
+                item.party_name,
+                parseFloat(item.due_amount).toFixed(2)
+            ]);
+            totalAmount += parseFloat(item.due_amount);
+        });
+
+        // Totals row
+        tableBody.push([
+            '',
+            'TOTAL',
+            totalAmount.toFixed(2)
+        ]);
+
+        doc.autoTable({
+            startY: startY,
+            head: [[
+                '#',
+                'Supplier',
+                'Due Payment'
+            ]],
+            body: tableBody,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 3
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: 'bold'
+            },
+            columnStyles: {
+                2: { halign: 'right' }
+            }
+        });
+
+        doc.save("supplier_due_payment_report.pdf");
     });
 
     $(document).on("click", '#generate_excel', function() {

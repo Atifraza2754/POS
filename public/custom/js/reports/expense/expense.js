@@ -2,6 +2,7 @@ $(function() {
     "use strict";
 
     let originalButtonText;
+    let expenseResponse = null;
 
     const tableId = $('#expenseReport');
 
@@ -48,6 +49,7 @@ $(function() {
     }
     function afterSeccessOfAjaxRequest(formObject, response){
         formAdjustIfSaveOperation(response);
+        expenseResponse = response; // store for PDF export
     }
     function afterFailOfAjaxRequest(formObject){
         showNoRecordsMessageOnTableBody();
@@ -165,7 +167,99 @@ $(function() {
      * PDF, SpreadSheet
      * */
     $(document).on("click", '#generate_pdf', function() {
-        tableId.tableExport({type:'pdf',escape:'false'});
+        if (!expenseResponse || !expenseResponse.data.length) {
+            alert("No data to export");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        let startY = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // COMPANY NAME
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Shahid Traders", pageWidth / 2, startY, { align: "center" });
+
+        startY += 8;
+
+        // REPORT TITLE
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Expense Report", pageWidth / 2, startY, { align: "center" });
+
+        startY += 10;
+
+        // CATEGORY INFO
+        const selectedCategory = $('#expense_category_id').select2 ? ($('#expense_category_id').select2('data')[0] ? $('#expense_category_id').select2('data')[0].text : '') : $('#expense_category_id option:selected').text();
+        doc.setFontSize(10);
+
+        if (selectedCategory) {
+            doc.text(`Category: ${selectedCategory}`, 14, startY);
+            startY += 6;
+        }
+
+        startY += 8;
+
+        // TABLE DATA
+        const tableBody = [];
+        let totalAmount = 0;
+        // Always show per-expense rows (matches filtered table)
+        let counter = 1;
+        expenseResponse.data.forEach(function(item) {
+            tableBody.push([
+                counter++,
+                item.expense_date,
+                item.category_name,
+                item.expense_code,
+                item.payment_type,
+                parseFloat(item.amount).toFixed(2),
+                item.user
+            ]);
+            totalAmount += parseFloat(item.amount);
+        });
+
+        // Totals row
+        tableBody.push([
+            '',
+            '',
+            'TOTAL',
+            '',
+            '',
+            totalAmount.toFixed(2),
+            ''
+        ]);
+
+        doc.autoTable({
+            startY: startY,
+            head: [[
+                '#',
+                'Date',
+                'Category',
+                'Expense No.',
+                'Payment Type',
+                'Amount',
+                'User'
+            ]],
+            body: tableBody,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 3
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: 'bold'
+            },
+            columnStyles: {
+                5: { halign: 'right' }
+            }
+        });
+
+        doc.save("expense_report.pdf");
     });
 
     $(document).on("click", '#generate_excel', function() {

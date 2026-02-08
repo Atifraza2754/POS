@@ -2,6 +2,7 @@ $(function() {
     "use strict";
 
     let originalButtonText;
+    let customerTotalResponse = null;
 
     const tableId = $('#saleReport');
 
@@ -48,6 +49,8 @@ $(function() {
     }
     function afterSeccessOfAjaxRequest(formObject, response){
         formAdjustIfSaveOperation(response);
+        // Keep last response for PDF export
+        customerTotalResponse = response;
     }
     function afterFailOfAjaxRequest(formObject){
         showNoRecordsMessageOnTableBody();
@@ -242,7 +245,72 @@ function formAdjustIfSaveOperation(response) {
      * PDF, SpreadSheet
      * */
     $(document).on("click", '#generate_pdf', function() {
-        tableId.tableExport({type:'pdf',escape:'false'});
+        if (!customerTotalResponse || !customerTotalResponse.data || !customerTotalResponse.data.length) {
+            alert('No data to export');
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        let startY = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // Company name (centered)
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Shahid Traders", pageWidth / 2, startY, { align: "center" });
+
+        startY += 8;
+
+        // Report title
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text("Customer Total Sales Report", pageWidth / 2, startY, { align: "center" });
+
+        startY += 10;
+
+        // Customer & Period (from server response)
+        const customerName = (customerTotalResponse.customer && customerTotalResponse.customer.full_name) ? customerTotalResponse.customer.full_name : ($('#reportForm').find('#party_id option:selected').text() || 'All Customers');
+        const fromDate = customerTotalResponse.from_date || ($('#reportForm').find('input[name="from_date"]').val() || '-');
+        const toDate = customerTotalResponse.to_date || ($('#reportForm').find('input[name="to_date"]').val() || '-');
+
+        doc.setFontSize(10);
+        doc.text(`Customer: ${customerName}`, 14, startY);
+        startY += 6;
+        doc.text(`Period: ${fromDate} - ${toDate}`, 14, startY);
+
+        startY += 10;
+
+        // Prepare table body
+        const tableBody = [];
+        let grandTotal = 0;
+
+        customerTotalResponse.data.forEach(customer => {
+            customer.records.forEach(rec => {
+                tableBody.push([
+                    rec.date,
+                    customer.party_name,
+                    rec.amount
+                ]);
+                grandTotal += parseFloat(rec.amount);
+            });
+        });
+
+        // Totals row
+        tableBody.push(['', 'TOTAL', grandTotal.toFixed(2)]);
+
+        doc.autoTable({
+            startY: startY,
+            head: [[ 'Date', 'Customer', 'Amount' ]],
+            body: tableBody,
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+            columnStyles: { 2: { halign: 'right' } }
+        });
+
+        doc.save("customer_total_sales_report.pdf");
     });
 
     $(document).on("click", '#generate_excel', function() {

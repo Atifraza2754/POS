@@ -47,8 +47,11 @@ $(function() {
         enableSubmitButton(formObject);
         hideSpinner();
     }
+    let stockResponse = null;
+
     function afterSeccessOfAjaxRequest(formObject, response){
         formAdjustIfSaveOperation(response);
+        stockResponse = response; // store for PDF export
     }
     function afterFailOfAjaxRequest(formObject){
         showNoRecordsMessageOnTableBody();
@@ -316,7 +319,101 @@ function formAdjustIfSaveOperation(response){
      * PDF, SpreadSheet
      * */
     $(document).on("click", '#generate_pdf', function() {
-        tableId.tableExport({type:'pdf',escape:'false'});
+        if (!stockResponse || !stockResponse.data.length) {
+            alert("No data to export");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        let startY = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // COMPANY NAME
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Shahid Traders", pageWidth / 2, startY, { align: "center" });
+
+        startY += 8;
+
+        // REPORT TITLE
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text("Stock Report", pageWidth / 2, startY, { align: "center" });
+
+        startY += 10;
+
+        // FILTER INFO (Category or All)
+        const categoryText = $('#item_category_id option:selected').text() || '';
+        if ($('#all').is(':checked')) {
+            doc.setFontSize(10);
+            doc.text(`All Stock Report`, 14, startY);
+            startY += 6;
+        } else if (categoryText) {
+            doc.setFontSize(10);
+            doc.text(`Category: ${categoryText}`, 14, startY);
+            startY += 6;
+        }
+
+        startY += 6;
+
+        // TABLE DATA
+        const tableBody = [];
+        let totalRemainingQty = 0;
+        let totalStockValue = 0;
+        let counter = 1;
+
+        stockResponse.data.forEach(function(item) {
+            totalRemainingQty += parseFloat(item.remaining_qty);
+            totalStockValue += parseFloat(item.stock_value);
+
+            tableBody.push([
+                counter++,
+                item.item_name,
+                parseFloat(item.remaining_qty).toFixed(2),
+                parseFloat(item.purchase_price).toFixed(2),
+                parseFloat(item.stock_value).toFixed(2)
+            ]);
+        });
+
+        // Totals row
+        tableBody.push([
+            '',
+            'TOTAL',
+            totalRemainingQty.toFixed(2),
+            '',
+            totalStockValue.toFixed(2)
+        ]);
+
+        doc.autoTable({
+            startY: startY,
+            head: [[
+                '#',
+                'Item Name',
+                'Remaining Qty',
+                'Purchase Price',
+                'Valuation'
+            ]],
+            body: tableBody,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 3
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: 'bold'
+            },
+            columnStyles: {
+                2: { halign: 'right' },
+                3: { halign: 'right' },
+                4: { halign: 'right' }
+            }
+        });
+
+        doc.save("stock_report.pdf");
     });
 
     $(document).on("click", '#generate_excel', function() {
