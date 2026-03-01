@@ -22,6 +22,8 @@ use App\Services\AccountTransactionService;
 use App\Http\Controllers\Purchase\PurchaseController;
 use App\Models\Purchase\Purchase;
 use App\Models\PaymentTransaction;
+use App\Models\SupplierPayment;
+use App\Models\Party\Party;
 
 use Mpdf\Mpdf;
 
@@ -475,5 +477,134 @@ class PurchasePaymentController extends Controller
                     })
                     ->rawColumns(['action'])
                     ->make(true);
+    }
+
+    /**
+     * View Purchase Payment History
+     * 
+     */
+    public function PurchasePaymentHistory()
+    {
+        return view('purchase.payment.history');
+    }
+
+    /**
+     * Payment History Datatable (uses supplier_payments table)
+     */
+    public function paymentHistoryDatatable(Request $request)
+    {
+        $user = auth()->user();
+
+        // Base query - supplier payments
+        $query = SupplierPayment::with('party');
+
+        // Filter by user if admin
+        if ($user->role_id == 1 && $request->filled('user_id')) {
+            $userId = $request->input('user_id');
+            $query->where('created_by', $userId);
+        }
+
+        // Filter by user if not admin
+        if ($user->role_id != 1) {
+            $query->where('created_by', $user->id);
+        }
+
+        // Filter by from_date
+        if ($request->filled('from_date')) {
+            $query->whereDate('payment_date', '>=', $this->toSystemDateFormat($request->from_date));
+        }
+
+        // Filter by to_date
+        if ($request->filled('to_date')) {
+            $query->whereDate('payment_date', '<=', $this->toSystemDateFormat($request->to_date));
+        }
+
+        $data = $query->get();
+
+        return DataTables::of($data)
+            ->addIndexColumn()
+            ->addColumn('customer_name', function ($row) {
+                return $row->party->first_name . ' ' . $row->party->last_name;
+            })
+            ->addColumn('mobile', function ($row) {
+                return $row->party->mobile ?? '';
+            })
+            ->addColumn('total_amount', function ($row) {
+                return number_format(Purchase::where('party_id', $row->party_id)->sum('grand_total'), 2);
+            })
+            ->addColumn('paid_amount', function ($row) {
+                return number_format($row->amount, 2);
+            })
+            ->addColumn('remaining_amount', function ($row) {
+                $totalPurchases = Purchase::where('party_id', $row->party_id)->sum('grand_total');
+                $totalPaid = SupplierPayment::where('party_id', $row->party_id)->sum('amount');
+                $remaining = $totalPurchases - $totalPaid;
+                return number_format(max($remaining, 0), 2);
+            })
+            ->addColumn('credit_limit', function ($row) {
+                $totalLimit = Party::where('party_type', 'supplier')
+                    ->where('id', $row->party_id)
+                    ->sum('credit_limit');
+
+                if ($totalLimit == 0) {
+                    return '<span style="background-color: #f8d7da; color: #721c24; padding: 4px 8px; border-radius: 4px;">No credit limit</span>';
+                } else {
+                    $formatted = number_format($totalLimit, 2);
+                    return '<span style="background-color: #67b0f0; color: #fff; padding: 4px 8px; border-radius: 4px;">' . $formatted . '</span>';
+                }
+            })
+            ->addColumn('payment_date', function ($row) {
+                return $row->payment_date;
+            })
+            ->addColumn('created_by', function ($row) {
+                return $row->createdByUser->username ?? '—';
+            })
+            ->addColumn('created_at', function ($row) {
+                return $row->created_at->format(app('company')['date_format']);
+            })
+            ->addColumn('action', function ($row) {
+                $id = $row->id;
+                return '<div class="dropdown ms-auto">
+                    <a class="dropdown-toggle dropdown-toggle-nocaret" href="#" data-bs-toggle="dropdown">
+                        <i class="bx bx-dots-vertical-rounded font-22 text-option"></i>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <button type="button" class="dropdown-item text-danger deleteRequest" data-delete-id="' . $id . '">
+                                <i class="bx bx-trash"></i> ' . __('app.delete') . '
+                            </button>
+                        </li>
+                    </ul>
+                </div>';
+            })
+            ->rawColumns(['credit_limit','action'])
+            ->make(true);
+    }
+
+    /**
+     * Delete Purchase Payment
+     */
+    public function PurchasePaymentDelete(Request $request): JsonResponse
+    {
+        $selectedRecordIds = $request->input('record_ids');
+
+        // Perform validation for each selected record ID
+        foreach ($selectedRecordIds as $recordId) {
+            $record = SupplierPayment::find($recordId);
+            if (!$record) {
+                return response()->json([
+                    'status'    => false,
+                    'message' => __('app.invalid_record_id', ['record_id' => $recordId]),
+                ]);
+            }
+        }
+
+        // Delete all records with the selected IDs
+        SupplierPayment::whereIn('id', $selectedRecordIds)->delete();
+
+        return response()->json([
+            'status'    => true,
+            'message' => __('app.record_deleted_successfully'),
+        ]);
     }
 }

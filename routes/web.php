@@ -1434,6 +1434,16 @@ Route::middleware('auth')->group(function () {
                     })->middleware('can:purchase.bill.view')
                     ->name('purchase.payment.out');//View
         Route::get('/out/datatable-list', [PurchasePaymentController::class, 'datatablePurchaseBillPayment'])->name('purchase.bill.payment.datatable.list'); //Datatable List
+
+                /**
+                 * Purchase Payment History
+                 */
+                Route::get('/history', [PurchasePaymentController::class, 'PurchasePaymentHistory'])
+                        ->name('purchase.payment.history.list');
+                Route::get('/datatable-list', [PurchasePaymentController::class, 'paymentHistoryDatatable'])
+                        ->name('purchase.payment.history.datatable.list');
+                Route::post('/delete', [PurchasePaymentController::class, 'PurchasePaymentDelete'])
+                        ->name('purchase.payment.delete');
     });
 
     /**
