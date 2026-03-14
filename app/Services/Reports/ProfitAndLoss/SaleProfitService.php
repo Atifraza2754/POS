@@ -19,45 +19,42 @@ class SaleProfitService{
     }
 
    
-    public function saleTotalAmount($fromDate, $toDate){
-        return Sale::select('id', 'sale_date')
-                        ->whereBetween('sale_date', [$fromDate, $toDate])
-                        ->sum('grand_total');
+    public function saleTotalAmount($fromDate, $toDate)
+{
+    $total = ItemTransaction::where('transaction_type', 'Sale Order')
+        ->whereBetween('transaction_date', [$fromDate, $toDate])
+        ->sum(DB::raw('unit_price * quantity'));
+
+    return (float) $total;
+}
+
+   public function saleProfitTotalAmount($fromDate, $toDate)
+{
+    $transactions = ItemTransaction::select(
+            'item_transactions.quantity',
+            'item_transactions.unit_price',
+            'items.purchase_price'
+        )
+        ->join('items', 'items.id', '=', 'item_transactions.item_id')
+        ->where('item_transactions.transaction_type', 'Sale Order')
+        ->whereBetween('item_transactions.transaction_date', [$fromDate, $toDate])
+        ->get();
+
+    $totalProfit = 0;
+
+    foreach ($transactions as $tx) {
+
+        $qty = $tx->quantity ?? 0;
+
+        $saleAmount = $tx->unit_price * $qty;
+
+        $purchaseAmount = $tx->purchase_price * $qty;
+
+        $totalProfit += ($saleAmount - $purchaseAmount);
     }
 
-    public function saleProfitTotalAmount($fromDate, $toDate) {
-        $sales = Sale::whereBetween('sale_date', [$fromDate, $toDate])->get();
-        
-        $totalProfit = 0;
-        
-        foreach ($sales as $sale) {
-            $saleItems = ItemTransaction::where('transaction_id', $sale->id)
-                                        ->where('transaction_type', 'Sale')
-                                        ->with('item')
-                                        ->get();
-            
-            foreach ($saleItems as $saleItem) {
-                // Calculate sale item profit
-                $saleQuantity = $saleItem->quantity;
-                $salePricePerUnit = $saleItem->unit_price;
-                $purchasePricePerUnit = $saleItem->item->purchase_price;
-                
-                // Subtract any sale returns
-                $saleReturns = ItemTransaction::where('item_id', $saleItem->item_id)
-                                              ->where('transaction_type', 'Sale Return')
-                                              ->sum('quantity');
-                
-                $effectiveQuantity = $saleQuantity - $saleReturns;
-                
-                // Calculate profit per item
-                $itemProfit = ($salePricePerUnit - $purchasePricePerUnit) * $effectiveQuantity;
-                
-                $totalProfit += $itemProfit;
-            }
-        }
-        
-        return $totalProfit;
-    }
+    return (float) $totalProfit;
+}
 
 	// public function saleTotalAmount($fromDate, $toDate){
 

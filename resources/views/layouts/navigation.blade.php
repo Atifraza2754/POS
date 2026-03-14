@@ -578,6 +578,12 @@
 					</li>
 					@endcan
 
+					@can('report.profit_and_loss')
+					<li class="{{ request()->is('report/profit-and-loss') ? 'mm-active' : '' }}">
+						<a href="{{ route('report.profit_and_loss') }}"><i class='bx bx-radio-circle'></i>PROFT Report</a>
+					</li>
+					@endcan
+
 					@can('report.sale.payment')
 						<li class="{{ request()->is('report/stock/page') ? 'mm-active' : '' }}">
 							<a href="{{ route('report.stock.page') }}"><i class='bx bx-radio-circle'></i>{{ __('Stock Report') }}</a>

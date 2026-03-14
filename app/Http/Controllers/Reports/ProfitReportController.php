@@ -58,57 +58,28 @@ class ProfitReportController extends Controller
             $toDate             = $request->input('to_date');
             $toDate             = $this->toSystemDateFormat($toDate);
 
-            /**
-             * Get sale Total without tax
-             * */
-            $saleTotalWithoutTaxAmount = $this->saleProfitService->saleTotalAmount($fromDate, $toDate);
+           $saleTotalWithoutTaxAmount = (float) $this->saleProfitService->saleTotalAmount($fromDate, $toDate);
 
-            /**
-             * Get sale Return Total without tax
-             * */
-            $saleReturnTotalWithoutTaxAmount = $this->saleReturnProfitService->saleReturnTotalAmount($fromDate, $toDate);
+            $expenseTotalWithoutTaxAmount = (float) $this->expenseTotalAmount($fromDate, $toDate);
 
-            /**
-             * Get Purchase Total without Tax
-             * */
-            $purchaseTotalWithoutTaxAmount = $this->purchaseTotalAmount($fromDate, $toDate);
+            $saleProfitTotalAmount = (float) $this->saleProfitService->saleProfitTotalAmount($fromDate, $toDate);
 
-            /**
-             * Get Purchase Return Total without Tax
-             * */
-            $purchaseReturnTotalWithoutTaxAmount = $this->purchaseReturnTotalAmount($fromDate, $toDate);
-            
-            /**
-             * Calculate Gross Profit
-             * */
-            $grossProfit = $saleTotalWithoutTaxAmount - $saleReturnTotalWithoutTaxAmount;
+            $netProfit = $saleProfitTotalAmount - $expenseTotalWithoutTaxAmount;
 
-            $grossProfit = $grossProfit + ($purchaseTotalWithoutTaxAmount - $purchaseReturnTotalWithoutTaxAmount);
+            $recordsArray = [
+                                    // new simplified keys used by the Profit Report table
+                                    'sale_total'       => $this->formatWithPrecision($saleTotalWithoutTaxAmount),
+                                    'expense_total'    => $this->formatWithPrecision($expenseTotalWithoutTaxAmount),
+                                    'profit_total'     => $this->formatWithPrecision($saleProfitTotalAmount),
+                                    'net_profit'       => $this->formatWithPrecision($netProfit),
 
-
-            /**
-             * Get Expense Total
-             * */
-            $expenseTotalWithoutTaxAmount = $this->expenseTotalAmount($fromDate, $toDate);
-
-            /**
-             * Calculate Net profit
-             * */
-            $netProfit = $grossProfit - $expenseTotalWithoutTaxAmount;
-
-            /**
-             * Get sale Total without tax
-             * */
-            $saleProfitTotalAmount = $this->saleProfitService->saleProfitTotalAmount($fromDate, $toDate);
-
-            $recordsArray = [  
+                                    // keep legacy keys for compatibility with other consumers
                                     'sale_without_tax'              => $this->formatWithPrecision($saleTotalWithoutTaxAmount),
-                                    'sale_return_without_tax'       => $this->formatWithPrecision($saleReturnTotalWithoutTaxAmount),
-                                    'purchase_without_tax'          => $this->formatWithPrecision($purchaseTotalWithoutTaxAmount),
-                                    'purchase_return_without_tax'   => $this->formatWithPrecision($purchaseReturnTotalWithoutTaxAmount),
-                                    'gross_profit'                  => $this->formatWithPrecision($grossProfit),
+                                    'sale_return_without_tax'       => $this->formatWithPrecision($this->saleReturnProfitService->saleReturnTotalAmount($fromDate, $toDate)),
+                                    'purchase_without_tax'          => $this->formatWithPrecision($this->purchaseTotalAmount($fromDate, $toDate)),
+                                    'purchase_return_without_tax'   => $this->formatWithPrecision($this->purchaseReturnTotalAmount($fromDate, $toDate)),
+                                    'gross_profit'                  => $this->formatWithPrecision(0),
                                     'indirect_expense_without_tax'  => $this->formatWithPrecision($expenseTotalWithoutTaxAmount),
-                                    'net_profit'                    => $this->formatWithPrecision($netProfit),
                                     'sale_profit'                   => $this->formatWithPrecision($saleProfitTotalAmount),
                                 ];
             
@@ -138,10 +109,10 @@ class ProfitReportController extends Controller
                         ->sum('grand_total');
     }
 
-    public function expenseTotalAmount($fromDate, $toDate){
-        return Expense::select('id', 'expense_date')
-                        ->whereBetween('expense_date', [$fromDate, $toDate])
-                        ->sum('grand_total');
-    }
+    public function expenseTotalAmount($fromDate, $toDate)
+{
+    return (float) Expense::whereBetween('expense_date', [$fromDate, $toDate])
+        ->sum('grand_total');
+}
 
 }
