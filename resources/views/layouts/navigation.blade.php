@@ -557,7 +557,7 @@
 						@endcanany
 
 						@canany(['report.customer.due.payment', 'report.supplier.due.payment'])
-							<li> <a class="has-arrow" href="javascript:;"><i class='bx bx-radio-circle'></i>{{ __('payment.due_payments') }}&nbsp;<span class="badge bg-primary">New</span></a>
+							<li> <a class="has-arrow" href="javascript:;"><i class='bx bx-radio-circle'></i>{{ __('payment.due_payments') }}</a>
 										<ul>
 											@can('report.customer.due.payment')
 											<li class="{{ request()->is('report/customer/due') ? 'mm-active' : '' }}">
@@ -581,6 +581,12 @@
 					@can('report.profit_and_loss')
 					<li class="{{ request()->is('report/profit-and-loss') ? 'mm-active' : '' }}">
 						<a href="{{ route('report.profit_and_loss') }}"><i class='bx bx-radio-circle'></i>PROFT Report</a>
+					</li>
+					@endcan
+
+					@can('report.profit_and_loss')
+					<li class="{{ request()->is('report/growth-report') ? 'mm-active' : '' }}">
+						<a href="{{ route('report.growth') }}"><i class='bx bx-radio-circle'></i>Growth Report</a>
 					</li>
 					@endcan
 

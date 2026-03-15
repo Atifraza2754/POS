@@ -865,6 +865,14 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/profit-and-loss/get-records', [ProfitReportController::class, 'getProfitRecords'])->name('report.profit_and_loss.ajax');
 
+        /*Report -> Growth Report  */
+        Route::get('/growth-report', function () {
+                    return view('report.growth.growth');
+                    })->middleware('can:report.profit_and_loss')
+                    ->name('report.growth');//View
+
+        Route::post('/growth-report/get-records', [App\Http\Controllers\Reports\GrowthReportController::class, 'getGrowthRecords'])->name('report.growth.ajax');
+
         /*Report -> Expense -> Expense  */
         Route::get('/expense', function () {
                     return view('report.expense.expense');
