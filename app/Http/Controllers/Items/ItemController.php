@@ -481,7 +481,14 @@ class ItemController extends Controller
                         return $this->formatWithPrecision($row->purchase_price);
                     })
                     ->addColumn('valuation', function ($row) {
-                        return $this->formatWithPrecision($row->purchase_price * $row->current_stock);
+                        $conversionRate = $row->conversion_rate ?: 1;
+                        $boxes = floor($row->current_pieces_stock / $conversionRate);
+                        $pieces = fmod($row->current_pieces_stock, $conversionRate);
+
+                        // Valuation: Boxes at Purchase rate + leftover pieces at Sale rate
+                        $valuation = ($boxes * $row->purchase_price) + ($pieces * ($row->sale_price / $conversionRate));
+
+                        return $this->formatWithPrecision($valuation);
                     })
                     // ->addColumn('current_stock', function ($row) use ($warehouseId){
                     //     if ($warehouseId) {
@@ -496,30 +503,32 @@ class ItemController extends Controller
                     //     return $this->formatQuantity($quantity);
                     // })
                     ->addColumn('current_stock', function ($row) use ($warehouseId) {
+                    $conversionRate = $row->conversion_rate ?? 1;
+
                     if ($warehouseId) {
                         $warehouseQuantity = $row->itemGeneralQuantities
                             ->where('warehouse_id', $warehouseId)
                             ->first();
 
                         $quantity = $warehouseQuantity ? $warehouseQuantity->quantity : 0;
+                        $totalPieces = $quantity * $conversionRate;
                     } else {
+                        // Use accurate sum of pieces instead of multiplying boxes integer
+                        $totalPieces = $row->current_pieces_stock;
                         $quantity = $row->current_stock;
                     }
 
-                    $conversionRate = $row->conversion_rate ?? 1;
-
-                    // Calculate total pieces based on conversion rate
-                    $totalPieces = $quantity * $conversionRate;
-
-                    // Split into boxes and pieces
                     $boxes = floor($totalPieces / $conversionRate);
                     $pieces = round(fmod($totalPieces, $conversionRate), 0); // ✅ round to whole number
 
-                    // Adjust display
+                    // Use the actual unit names (prefer short_code) instead of hard-coded labels
+                    $baseUnitLabel = $row->baseUnit?->short_code ?? $row->baseUnit?->name ?? 'Unit';
+                    $secondaryUnitLabel = $row->secondaryUnit?->short_code ?? $row->secondaryUnit?->name ?? 'Unit';
+
                     if ($conversionRate > 1) {
-                        return "{$boxes} Boxes {$pieces} Pcs";
+                        return "{$boxes} {$baseUnitLabel} {$pieces} {$secondaryUnitLabel}";
                     } else {
-                        return "{$quantity} {$row->baseUnit->name}";
+                        return "{$quantity} {$baseUnitLabel}";
                     }
                 })
 

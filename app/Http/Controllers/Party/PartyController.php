@@ -788,10 +788,11 @@ class PartyController extends Controller
         $totalOrders = $orders->sum('grand_total');
 
         // Total paid from payments table
-        $totalPaid = CustomerPayment::where('party_id', $customerId)->sum('paid_amount');
+        $totalPaid = CustomerPayment::where('party_id', $customerId)->sum('amount');
+        $totalReturns = \App\Models\Sale\SaleReturn::where('party_id', $customerId)->sum('grand_total');
 
-        // Remaining
-        $remaining = $totalOrders - $totalPaid;
+        // Remaining = orders - returns - payments
+        $remaining = $totalOrders - $totalReturns - $totalPaid;
 
         return response()->json([
             'html' => view('order_payments.partials.customer_orders', compact('orders', 'totalOrders', 'totalPaid', 'remaining'))->render(),

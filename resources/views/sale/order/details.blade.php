@@ -160,8 +160,17 @@
                                                         </td>
                                                     @endif
                                                    <td class="">
-                                                        {{ $formatNumber->formatQuantity($transaction->quantity) }}<br>
-                                                        <small>{{ $transaction->unit->name }}</small>
+                                                        @php
+                                                            $conversionRate = $transaction->item->conversion_rate ?? 1;
+                                                            if ($conversionRate > 1 && $transaction->unit_id == $transaction->item->secondary_unit_id) {
+                                                                $totalPieces = $transaction->quantity;
+                                                                $boxes = floor($totalPieces / $conversionRate);
+                                                                $pieces = fmod($totalPieces, $conversionRate);
+                                                                echo "{$boxes} Box " . ($pieces > 0 ? "{$pieces} Pcs" : "");
+                                                            } else {
+                                                                echo $formatNumber->formatQuantity($transaction->quantity) . '<br><small>' . ($transaction->unit->name ?? '') . '</small>';
+                                                            }
+                                                        @endphp
                                                     </td>
                                                     <td class="unit">
                                                         {{ $formatNumber->formatWithPrecision($transaction->unit_price) }}

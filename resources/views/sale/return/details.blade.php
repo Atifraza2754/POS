@@ -155,7 +155,22 @@
                                                         </td>
                                                     @endif
                                                    <td class="">
-                                                        {{ $formatNumber->formatQuantity($transaction->quantity) }}
+                                                        @php
+                                                            $conversionRate = $transaction->item->conversion_rate ?? 1;
+                                                            if ($conversionRate > 1 && $transaction->unit_id == $transaction->item->secondary_unit_id) {
+                                                                $totalPieces = $transaction->quantity;
+                                                                $boxes = floor($totalPieces / $conversionRate);
+                                                                $pieces = fmod($totalPieces, $conversionRate);
+
+                                                                $baseUnitLabel = $transaction->item->baseUnit?->short_code ?? $transaction->item->baseUnit?->name ?? 'Unit';
+                                                                $secondaryUnitLabel = $transaction->item->secondaryUnit?->short_code ?? $transaction->item->secondaryUnit?->name ?? 'Unit';
+
+                                                                echo "{$boxes} {$baseUnitLabel} " . ($pieces > 0 ? "{$pieces} {$secondaryUnitLabel}" : "");
+                                                            } else {
+                                                                $unitLabel = $transaction->unit?->short_code ?? $transaction->unit?->name ?? '';
+                                                                echo $formatNumber->formatQuantity($transaction->quantity) . ' ' . $unitLabel;
+                                                            }
+                                                        @endphp
                                                     </td>
                                                     <td class="unit">
                                                         {{ $formatNumber->formatWithPrecision($transaction->unit_price) }}<br>

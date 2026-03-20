@@ -152,6 +152,8 @@ class SaleReturnController extends Controller
 
         $return->formatted_return_date = $this->toUserDateFormat(date('Y-m-d'));
 
+        $categories = DB::table('party_categories')->where('status', 1)->pluck('name', 'id');
+
         // Item Details
         // Prepare item transactions with associated units
         $allUnits = CacheService::get('unit');
@@ -189,7 +191,7 @@ class SaleReturnController extends Controller
 
         $paymentHistory = [];
 
-        return view('sale.return.edit', compact('taxList', 'return', 'itemTransactionsJson','selectedPaymentTypesArray', 'paymentHistory'));
+        return view('sale.return.edit', compact('taxList', 'return', 'itemTransactionsJson','selectedPaymentTypesArray', 'paymentHistory','categories'));
     }
 
      /**
@@ -246,7 +248,9 @@ class SaleReturnController extends Controller
 
         $taxList = CacheService::get('tax')->toJson();
 
-        return view('sale.return.edit', compact('taxList', 'return', 'itemTransactionsJson','selectedPaymentTypesArray', 'paymentHistory'));
+        $categories = DB::table('party_categories')->where('status', 1)->pluck('name', 'id');
+
+        return view('sale.return.edit', compact('taxList', 'return', 'itemTransactionsJson','selectedPaymentTypesArray', 'paymentHistory','categories'));
     }
 
     /**
@@ -374,6 +378,25 @@ class SaleReturnController extends Controller
                 * */
                 $this->previousHistoryOfItems = $this->itemTransactionService->getHistoryOfItems($newRuturn);
 
+                // Rollback Previous Stock quantities before deleting them
+                $previousItemsList = $newRuturn->itemTransaction()->get();
+                foreach ($previousItemsList as $previousItem) {
+                    $itemDetails = $previousItem->item;
+                    if ($itemDetails) {
+                        $conversionRate = $itemDetails->conversion_rate ?? 1;
+                        $quantityToRemove = 0;
+
+                        if ($itemDetails->base_unit_id == $previousItem->unit_id) {
+                            $quantityToRemove = $previousItem->quantity * $conversionRate;
+                        } else {
+                            $quantityToRemove = $previousItem->quantity;
+                        }
+
+                        $itemDetails->current_pieces_stock -= $quantityToRemove;
+                        $itemDetails->current_stock = floor($itemDetails->current_pieces_stock / $conversionRate);
+                        $itemDetails->save();
+                    }
+                }
 
                 $newRuturn->itemTransaction()->delete();
                 //$newRuturn->accountTransaction()->delete();
@@ -596,6 +619,27 @@ class SaleReturnController extends Controller
             if(!$transaction){
                 throw new \Exception("Failed to record Item Transaction Entry!");
             }
+
+            // Update Item Master Stock
+            $itemUnitId = $request->unit_id[$i];
+            $conversionRate = $itemDetails->conversion_rate ?? 1;
+
+            $returnedPieces = 0;
+            if ($itemDetails->base_unit_id == $itemUnitId) {
+                // Item entered in Base Unit (e.g. Box)
+                $returnedPieces = $itemQuantity * $conversionRate;
+            } else {
+                // Item entered in Secondary Unit (e.g. Pieces)
+                $returnedPieces = $itemQuantity;
+            }
+
+            // Increase pieces
+            $itemDetails->current_pieces_stock += $returnedPieces;
+
+            // Recalculate Boxes
+            $itemDetails->current_stock = floor($itemDetails->current_pieces_stock / $conversionRate);
+
+            $itemDetails->save();
 
 
             /**

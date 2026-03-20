@@ -100,6 +100,11 @@ class Party extends Model
         return $this->hasMany(\App\Models\CustomerPayment::class, 'party_id');
     }
 
+    public function saleReturns()
+    {
+        return $this->hasMany(\App\Models\Sale\SaleReturn::class, 'party_id');
+    }
+
     
 
 }

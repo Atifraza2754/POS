@@ -124,13 +124,19 @@ class LedgerReportController extends Controller
             // -------------------------------
             $customers = Party::where('party_type', 'customer')
                 ->with([
-                    'saleOrders' => function ($q) use ($fromDate, $toDate, $userId) {
+                            'saleOrders' => function ($q) use ($fromDate, $toDate, $userId) {
                         $q->whereBetween('order_date', [$fromDate, $toDate]);
                         if ($userId) {
                             $q->where('created_by', $userId);
                         }
                     },
-                    'customerPayments' => function ($q) use ($fromDate, $toDate, $userId) {
+                            'saleReturns' => function ($q) use ($fromDate, $toDate, $userId) {
+                                $q->whereBetween('return_date', [$fromDate, $toDate]);
+                                if ($userId) {
+                                    $q->where('created_by', $userId);
+                                }
+                            },
+                            'customerPayments' => function ($q) use ($fromDate, $toDate, $userId) {
                         $q->whereBetween('payment_date', [$fromDate, $toDate]);
                         if ($userId) {
                             $q->where('created_by', $userId);
@@ -152,8 +158,9 @@ class LedgerReportController extends Controller
             foreach ($customers as $c) {
 
                 $totalSale = $c->saleOrders->sum('grand_total');
+                $totalReturns = $c->saleReturns->sum('grand_total') ?? 0;
                 $totalPaid = $c->customerPayments->sum('amount');
-                $remaining = $totalSale - $totalPaid;
+                $remaining = $totalSale - $totalReturns - $totalPaid;
 
                 // Only add customers who have ANY activity
                 if ($totalSale == 0 && $totalPaid == 0) {
@@ -165,6 +172,7 @@ class LedgerReportController extends Controller
                     "mobile"          => $c->mobile,
                     "total_sale"      => (float)$totalSale,
                     "total_paid"      => (float)$totalPaid,
+                    "total_returns"   => (float)$totalReturns,
                     "remaining"       => (float)$remaining,
                     "created_by"      => $c->createdBy->username ?? "—",
                     "records" => [
@@ -183,6 +191,14 @@ class LedgerReportController extends Controller
                                 "date"   => Carbon::parse($p->payment_date)->format('d/m/Y'),
                                 "amount" => (float)$p->amount,
                                 "receipt_no" => $p->receipt_no
+                            ];
+                        })->toArray(),
+                        // List of sale returns in detail
+                        "returns" => $c->saleReturns->map(function ($r) {
+                            return [
+                                "date"   => Carbon::parse($r->return_date)->format('d/m/Y'),
+                                "amount" => (float)$r->grand_total,
+                                "return_code" => $r->return_code ?? null
                             ];
                         })->toArray(),
 
@@ -508,7 +524,12 @@ class LedgerReportController extends Controller
                 ->where('payment_date', '<', $fromDate)
                 ->sum('amount');
 
-            $openingBalance = $openingDebit - $openingCredit;
+            // Include sale returns in opening calculation (returns reduce the customer's balance)
+            $openingReturns = \App\Models\Sale\SaleReturn::where('party_id', $partyId)
+                ->where('return_date', '<', $fromDate)
+                ->sum('grand_total');
+
+            $openingBalance = $openingDebit - $openingCredit - $openingReturns;
 
             // ---------------------------------
             // SALES (DEBIT)
@@ -517,11 +538,14 @@ class LedgerReportController extends Controller
                 ->whereBetween('order_date', [$fromDate, $toDate])
                 ->get()
                 ->map(function ($o) {
+                    $ts = Carbon::parse($o->order_date)->timestamp;
                     return [
-                        'date'        => Carbon::parse($o->order_date)->format('d/m/Y'),
-                        'description' => "Invoice ({$o->order_code})",
-                        'debit'       => (float) $o->grand_total,
-                        'credit'      => 0,
+                        'date'          => Carbon::parse($o->order_date)->format('d/m/Y'),
+                        'description'   => "Invoice ({$o->order_code})",
+                        'debit'         => (float) $o->grand_total,
+                        'credit'        => 0,
+                        'date_timestamp'=> $ts,
+                        'type_order'    => 1, // sales first
                     ];
                 });
 
@@ -532,19 +556,44 @@ class LedgerReportController extends Controller
                 ->whereBetween('payment_date', [$fromDate, $toDate])
                 ->get()
                 ->map(function ($p) {
+                    $ts = Carbon::parse($p->payment_date)->timestamp;
                     return [
-                        'date'        => Carbon::parse($p->payment_date)->format('d/m/Y'),
-                        'description' => "Collection ({$p->payment_type})",
-                        'debit'       => 0,
-                        'credit'      => (float) $p->amount,
+                        'date'          => Carbon::parse($p->payment_date)->format('d/m/Y'),
+                        'description'   => "Collection ({$p->payment_type})",
+                        'debit'         => 0,
+                        'credit'        => (float) $p->amount,
+                        'date_timestamp'=> $ts,
+                        'type_order'    => 3, // payments last
                     ];
                 });
+
+                // ---------------------------------
+                // SALE RETURNS (CREDIT)
+                // ---------------------------------
+                $returns = \App\Models\Sale\SaleReturn::where('party_id', $partyId)
+                    ->whereBetween('return_date', [$fromDate, $toDate])
+                    ->get()
+                    ->map(function ($r) {
+                        $ts = Carbon::parse($r->return_date)->timestamp;
+                        return [
+                            'date'          => Carbon::parse($r->return_date)->format('d/m/Y'),
+                            'description'   => "Sale Return ({$r->return_code})",
+                            'debit'         => 0,
+                            'credit'        => (float) $r->grand_total,
+                            'date_timestamp'=> $ts,
+                            'type_order'    => 2, // returns after sales, before payments
+                        ];
+                    });
 
             // ---------------------------------
             // MERGE & SORT
             // ---------------------------------
-            $ledger = $orders->merge($payments)
-                ->sortBy('date')
+            // Merge orders, payments and returns so return records are visible and affect balance
+            // Merge and sort by timestamp and type_order so payments appear last when on same date
+            $ledger = $orders->merge($payments)->merge($returns)
+                ->sortBy(function ($row) {
+                    return ($row['date_timestamp'] ?? 0) * 10 + ($row['type_order'] ?? 0);
+                })
                 ->values();
 
             if ($ledger->isEmpty() && $openingBalance == 0) {
@@ -567,6 +616,9 @@ class LedgerReportController extends Controller
                 $runningBalance -= $row['credit'];
 
                 $row['balance'] = $runningBalance;
+                // remove helper keys before returning
+                if (isset($row['date_timestamp'])) unset($row['date_timestamp']);
+                if (isset($row['type_order'])) unset($row['type_order']);
                 return $row;
             });
 

@@ -106,18 +106,25 @@ class OrderPaymentController extends Controller
         // Fetch customer orders
         $orders = SaleOrder::where('party_id', $customerId)->get();
 
+        // Fetch customer returns
+        $returns = \App\Models\Sale\SaleReturn::where('party_id', $customerId)->get();
+
         // Total order amount
         $totalOrders = $orders->sum('grand_total');
+
+        // Total return amount
+        $totalReturns = $returns->sum('grand_total');
 
         // Total paid (sum of payments.amount)
         $totalPaid = CustomerPayment::where('party_id', $customerId)->sum('amount');
 
-        // Remaining
-        $remaining = $totalOrders - $totalPaid;
+        // Remaining = Sale Orders - Returns - Payments
+        $remaining = $totalOrders - $totalReturns - $totalPaid;
 
         return response()->json([
-            'html' => view('order_payments.partials.customer_orders', compact('orders', 'totalOrders', 'totalPaid', 'remaining'))->render(),
+            'html' => view('order_payments.partials.customer_orders', compact('orders', 'returns', 'totalOrders', 'totalReturns', 'totalPaid', 'remaining'))->render(),
             'orders' => $orders,
+            'returns' => $returns,
         ]);
     }
 
@@ -191,13 +198,16 @@ class OrderPaymentController extends Controller
 
         // Get all orders of customer
         $orders = SaleOrder::where('party_id', $validated['party_id'])->get();
+        $returns = \App\Models\Sale\SaleReturn::where('party_id', $validated['party_id'])->get();
+
         $totalAmount = $orders->sum('grand_total');
+        $totalReturns = $returns->sum('grand_total');
 
         // Already paid before this new payment
         $alreadyPaid = CustomerPayment::where('party_id', $validated['party_id'])->sum('amount');
 
         // Remaining before this payment
-        $remainingBefore = $totalAmount - $alreadyPaid;
+        $remainingBefore = $totalAmount - $totalReturns - $alreadyPaid;
 
         // Check if already fully paid
         if ($remainingBefore <= 0) {
@@ -210,7 +220,7 @@ class OrderPaymentController extends Controller
 
         // New totals
         $newTotalPaid = $alreadyPaid + $paymentAmount;
-        $remainingAmount = $totalAmount - $newTotalPaid;
+        $remainingAmount = $totalAmount - $totalReturns - $newTotalPaid;
          $validated['payment_date'] = Carbon::createFromFormat('d/m/Y', $validated['payment_date'])->format('Y-m-d');
         // Save payment
         $payment = CustomerPayment::create([
